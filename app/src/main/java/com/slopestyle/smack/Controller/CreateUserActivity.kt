@@ -1,12 +1,16 @@
 package com.slopestyle.smack.Controller
 
+import android.content.Intent
 import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.support.v4.content.LocalBroadcastManager
 import android.view.View
+import android.widget.Toast
 import com.slopestyle.smack.R
 import com.slopestyle.smack.Services.AuthService
 import com.slopestyle.smack.Services.UserDataService
+import com.slopestyle.smack.Utilities.USER_DATA_CHANGED_BROADCAST
 import kotlinx.android.synthetic.main.activity_create_user.*
 import java.util.*
 
@@ -17,6 +21,7 @@ class CreateUserActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_user)
+        createSpinner.visibility = View.INVISIBLE
     }
 
     fun createUserAvatar(view: View) {
@@ -52,26 +57,59 @@ class CreateUserActivity : AppCompatActivity() {
     }
 
     fun createUserClicked(view: View) {
+        enableSpinner(true)
         val userName = createUserNameText.text.toString()
         val email = createEmailText.text.toString()
         val password = createPasswordText.text.toString()
 
-        AuthService.registerUser(this, email, password) { registerSuccess ->
-            if(registerSuccess) {
-                AuthService.loginUser(this, email, password) {loginSuccess ->
-                    if(loginSuccess) {
-                        println(AuthService.userEmail)
-                        println(AuthService.authToken)
-                        AuthService.createUser(this, userName, email, userAvatar, avatarColor) { createSuccess ->
-                            if(createSuccess) {
-                                println(UserDataService.name)
-                                println(UserDataService.avatarName)
-                                println(UserDataService.avatarColor)
+        if(userName.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty()) {
+            AuthService.registerUser(this, email, password) { registerSuccess ->
+                if(registerSuccess) {
+                    AuthService.loginUser(this, email, password) {loginSuccess ->
+                        if(loginSuccess) {
+                            println(AuthService.userEmail)
+                            println(AuthService.authToken)
+                            AuthService.createUser(this, userName, email, userAvatar, avatarColor) { createSuccess ->
+                                if(createSuccess) {
+                                    //println(UserDataService.name)
+                                    //println(UserDataService.avatarName)
+                                    //println(UserDataService.avatarColor)
+                                    val userDataChanged = Intent(USER_DATA_CHANGED_BROADCAST)
+                                    LocalBroadcastManager.getInstance(this).sendBroadcast(userDataChanged)
+                                    enableSpinner(false)
+                                    finish()
+                                } else {
+                                    toastError()
+                                }
                             }
+                        } else {
+                            toastError()
                         }
                     }
+                } else {
+                    toastError()
                 }
             }
+        } else {
+            Toast.makeText(this, "Make sure that user name, email and password are filled in.", Toast.LENGTH_LONG).show()
+            enableSpinner(false)
         }
+    }
+
+    fun toastError() {
+        Toast.makeText(this, "Something went wrong, please try again.", Toast.LENGTH_LONG).show()
+        enableSpinner(false)
+    }
+
+    fun enableSpinner(enable: Boolean) {
+        if(enable) {
+            createSpinner.visibility = View.VISIBLE
+        } else {
+            createSpinner.visibility = View.INVISIBLE
+        }
+
+        createUserBtn.isEnabled = !enable
+        createAvatarImageView.isEnabled = !enable
+        backgroundColorBtn.isEnabled = !enable
     }
 }
